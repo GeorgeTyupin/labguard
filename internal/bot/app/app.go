@@ -59,5 +59,8 @@ func NewBot(logger *slog.Logger) (*BotApp, error) {
 
 func (app *BotApp) registerHandlers() {
 	// TODO Сделать регистрацию handlers
-	app.Bot.Handle("/start", handlers.Start)
+	startHandler := handlers.NewStartHandler()
+
+	app.Bot.Handle("/start", startHandler.Handle)
+	app.Bot.Handle(tele.OnText, startHandler.HandleMessage)
 }
