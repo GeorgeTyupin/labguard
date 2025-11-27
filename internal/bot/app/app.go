@@ -7,6 +7,7 @@ import (
 
 	"github.com/GeorgeTyupin/labguard/internal/bot/config"
 	"github.com/GeorgeTyupin/labguard/internal/bot/handlers"
+	"github.com/GeorgeTyupin/labguard/internal/bot/services/api"
 	tele "gopkg.in/telebot.v4"
 )
 
@@ -59,7 +60,7 @@ func NewBot(logger *slog.Logger) (*BotApp, error) {
 
 func (app *BotApp) registerHandlers() {
 	// TODO Сделать регистрацию handlers
-	startHandler := handlers.NewStartHandler()
+	startHandler := handlers.NewStartHandler(api.NewHttpClient())
 
 	app.Bot.Handle("/start", startHandler.Handle)
 	app.Bot.Handle(tele.OnText, startHandler.HandleMessage)

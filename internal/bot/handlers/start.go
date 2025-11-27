@@ -3,7 +3,7 @@ package handlers
 import (
 	"fmt"
 
-	"github.com/GeorgeTyupin/labguard/internal/bot/services/api"
+	"github.com/GeorgeTyupin/labguard/internal/bot/keyboards"
 	tele "gopkg.in/telebot.v4"
 )
 
@@ -24,9 +24,7 @@ type StartHandler struct {
 	userStates map[int64]*RegisterState // telegram_id -> stage
 }
 
-func NewStartHandler() *StartHandler {
-	apiClient := api.NewHttpClient()
-
+func NewStartHandler(apiClient RegisterAPIClient) *StartHandler {
 	return &StartHandler{
 		client:     apiClient,
 		userStates: make(map[int64]*RegisterState),
@@ -82,7 +80,10 @@ func (sh *StartHandler) HandleMessage(c tele.Context) error {
 		// Сохраняем группу в состояние
 		state.Group = c.Text()
 		state.Step = 3
-		return c.Send(fmt.Sprintf("ФИО: %s\nГруппа: %s\n\nВсё верно?\nОтветь: Да или Нет", state.Name, state.Group))
+
+		menu := keyboards.NewYesNoMenu()
+
+		return c.Send(fmt.Sprintf("ФИО: %s\nГруппа: %s\n\nВсё верно?", state.Name, state.Group), menu)
 
 	case 3:
 		check := c.Text()
@@ -96,7 +97,7 @@ func (sh *StartHandler) HandleMessage(c tele.Context) error {
 			// Удаляем состояние после успешной регистрации
 			delete(sh.userStates, telegramID)
 
-			return c.Send(fmt.Sprintf("✅ Регистрация завершена!\n\n👤 ФИО: %s\n👥 Группа: %s\n🔑 Токен: ```%s```", state.Name, state.Group, token))
+			return c.Send(fmt.Sprintf("✅ Регистрация завершена!\n\n👤 ФИО: %s\n👥 Группа: %s\n🔑 Токен: ```%s```", state.Name, state.Group, token), &tele.SendOptions{ParseMode: tele.ModeMarkdown})
 		} else {
 			// Сбрасываем регистрацию
 			delete(sh.userStates, telegramID)
