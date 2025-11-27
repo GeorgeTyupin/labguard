@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/GeorgeTyupin/labguard/internal/bot/keyboards"
+	"github.com/GeorgeTyupin/labguard/internal/bot/validators"
 	tele "gopkg.in/telebot.v4"
 )
 
@@ -107,12 +108,20 @@ func (sh *StartHandler) HandleMessage(c tele.Context) error {
 	case 1:
 		// Сохраняем ФИО в состояние
 		state.Name = c.Text()
+		if err := validators.ValidateName(state.Name); err != nil {
+			return c.Send(fmt.Sprintf("Неверный формат ФИО : %s.\n\nВы ввели %s.\nВведите ФИО еще раз:", err.Error(), state.Name))
+		}
+
 		state.Step = 2
 		return c.Send("👥 Теперь введи группу:")
 
 	case 2:
 		// Сохраняем группу в состояние
 		state.Group = c.Text()
+		if err := validators.ValidateGroup(state.Group); err != nil {
+			return c.Send(fmt.Sprintf("Неверный формат группу : %s.\n\nВы ввели %s.\nВведите группу еще раз", err.Error(), state.Group))
+		}
+
 		state.Step = 3
 
 		menu := keyboards.NewYesNoMenu()
@@ -137,18 +146,24 @@ func (sh *StartHandler) HandleMessage(c tele.Context) error {
 			delete(sh.userStates, telegramID)
 
 			return c.Send(
-				fmt.Sprintf("✅ Регистрация завершена!\n\n👤 ФИО: %s\n👥 Группа: %s\n🔑 Токен: ```%s```", state.Name, state.Group, token),
+				fmt.Sprintf("✅ Регистрация завершена!\n\n👤 ФИО: %s\n👥 Группа: %s\n🔑 Токен: ```%s```.", state.Name, state.Group, token),
 				sh.sendOptions[msgTypeSuccess],
 			)
 
 		case keyboards.NoText:
 			// Сбрасываем регистрацию
 			delete(sh.userStates, telegramID)
-			return c.Send("Регистрация отменена. Введи /start для повторной попытки")
+			return c.Send(
+				"Регистрация отменена. Введи /start для повторной попытки.",
+				sh.sendOptions[msgTypeSuccess],
+			)
 
 		default:
 			delete(sh.userStates, telegramID)
-			return c.Send("Сделан неверный выбор. Введи /start для повторной попытки")
+			return c.Send(
+				"Сделан неверный выбор. Введи /start для повторной попытки.",
+				sh.sendOptions[msgTypeSuccess],
+			)
 		}
 	}
 

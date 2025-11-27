@@ -30,21 +30,35 @@ func NewUserService(repo UserRepository) *UserService {
 
 ### Интерфейсы
 
-Интерфейсы хранятся в отдельной папке `internal/interfaces/`. Каждая сущность — отдельная подпапка с файлом.
+Следуем идиоматичному Go-подходу: **интерфейсы определяются на стороне потребителя** (consumer-side), а не производителя.
 
-```
-internal/interfaces/
-├── user/
-│   └── user.go
-├── product/
-│   └── product.go
-├── purchase/
-│   └── purchase.go
-└── license/
-    └── license.go
+```go
+// ✅ ПРАВИЛЬНО: интерфейс определён в пакете, который его использует
+// internal/bot/handlers/start.go
+type RegisterAPIClient interface {
+    CheckUserExists(telegramID int64) (bool, error)
+    RegisterUser(telegramID int64, name, group string) (string, error)
+}
+
+func NewStartHandler(apiClient RegisterAPIClient, logger *slog.Logger) *StartHandler {
+    return &StartHandler{client: apiClient, logger: logger}
+}
+
+// internal/bot/services/api/client.go
+type HttpClient struct { ... }
+
+// HttpClient реализует RegisterAPIClient, но НЕ импортирует интерфейс
+func (c *HttpClient) CheckUserExists(telegramID int64) (bool, error) { ... }
+func (c *HttpClient) RegisterUser(telegramID int64, name, group string) (string, error) { ... }
 ```
 
-Сервисы и storage импортируют интерфейсы из этой папки.
+**Преимущества:**
+- Минимальные интерфейсы — только нужные методы
+- Нет циклических зависимостей
+- Легко тестировать — моки создаются прямо в тестах
+- Меньше coupling между пакетами
+
+**Не создаём отдельную папку `internal/interfaces/`** — это anti-pattern для Go.
 
 ### Слои приложения
 
@@ -58,6 +72,10 @@ handler → service → repository (storage)
 - **service** — бизнес-логика, работает с интерфейсами repository
 - **storage** — реализация работы с БД
 
+### Валидация
+
+Валидация входных данных выносится в отдельный пакет `internal/bot/validators/`. Каждый файл содержит валидаторы для конкретной области (регистрация, покупки, продукты). Валидаторы возвращают предопределённые ошибки для единообразия сообщений пользователю.
+
 ## Структура проекта
 
 ```
@@ -68,16 +86,6 @@ labguard/
 │   └── client/main.go
 │
 ├── internal/
-│   ├── interfaces/
-│   │   ├── user/
-│   │   │   └── user.go             # UserRepository, UserService
-│   │   ├── product/
-│   │   │   └── product.go          # ProductRepository
-│   │   ├── purchase/
-│   │   │   └── purchase.go         # PurchaseRepository
-│   │   └── license/
-│   │       └── license.go          # LicenseService
-│   │
 │   ├── server/
 │   │   ├── app/
 │   │   │   └── app.go              # DI, сборка зависимостей, запуск
@@ -106,21 +114,27 @@ labguard/
 │   │
 │   ├── bot/
 │   │   ├── app/
-│   │   │   └── app.go              # DI, сборка зависимостей, запуск
+│   │   │   └── app.go              # DI, сборка зависимостей, запуск, регистрация хендлеров
 │   │   ├── config/
 │   │   │   └── config.go
-│   │   ├── handler/
-│   │   │   ├── handler.go          # Регистрация команд
-│   │   │   ├── start.go
-│   │   │   ├── products.go
-│   │   │   ├── buy.go
-│   │   │   ├── my.go
-│   │   │   └── devices.go
-│   │   ├── service/
+│   │   ├── handlers/
+│   │   │   ├── start.go            # Каждый хендлер определяет свой интерфейс
+│   │   │   ├── products.go         # Каждый хендлер определяет свой интерфейс
+│   │   │   ├── buy.go              # Каждый хендлер определяет свой интерфейс
+│   │   │   ├── my.go               # Каждый хендлер определяет свой интерфейс
+│   │   │   └── devices.go          # Каждый хендлер определяет свой интерфейс
+│   │   ├── services/
 │   │   │   └── api/
-│   │   │       └── api.go          # HTTP клиент к server
-│   │   └── keyboard/
-│   │       └── ...
+│   │   │       └── client.go       # Реализует интерфейсы из handlers
+│   │   ├── validators/
+│   │   │   ├── registration.go     # Валидация ФИО и группы
+│   │   │   ├── product.go          # Валидация product_slug
+│   │   │   └── purchase.go         # Валидация для покупок
+│   │   ├── keyboards/
+│   │   │   └── start.go
+│   │   └── middleware/
+│   │       └── loggers/
+│   │           └── message.go
 │   │
 │   ├── client/
 │   │   ├── app/

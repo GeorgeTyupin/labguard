@@ -62,7 +62,7 @@ func NewBot(logger *slog.Logger) (*BotApp, error) {
 }
 
 func (app *BotApp) registerHandlers() {
-	// TODO Сделать регистрацию handlers
+	// TODO Сделать регистрацию всех handlers, после их реализации
 	startHandler := handlers.NewStartHandler(api.NewHttpClient(), app.Logger)
 
 	app.Bot.Handle("/start", startHandler.Handle)
