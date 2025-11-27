@@ -24,7 +24,7 @@ func MessageLogger(logger *slog.Logger) tele.MiddlewareFunc {
 			} else {
 				logger.Info("Сообщение обработано",
 					slog.Int64("telegram_id", c.Sender().ID),
-					slog.String("message", c.Text()),
+					slog.String("user_message", c.Text()),
 					slog.Duration("duration", duration),
 				)
 			}
