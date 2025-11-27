@@ -7,6 +7,7 @@ import (
 
 	"github.com/GeorgeTyupin/labguard/internal/bot/config"
 	"github.com/GeorgeTyupin/labguard/internal/bot/handlers"
+	"github.com/GeorgeTyupin/labguard/internal/bot/middleware/loggers"
 	"github.com/GeorgeTyupin/labguard/internal/bot/services/api"
 	tele "gopkg.in/telebot.v4"
 )
@@ -40,6 +41,8 @@ func NewBot(logger *slog.Logger) (*BotApp, error) {
 	if err != nil {
 		return nil, fmt.Errorf("не удалось сконфигурировать приложение %s, возникла ошибка %w", appName, err)
 	}
+
+	bot.Use(loggers.MessageLogger(logger))
 
 	cfg, err := config.Load(confPath)
 	if err != nil {

@@ -87,7 +87,7 @@ func (sh *StartHandler) HandleMessage(c tele.Context) error {
 
 	case 3:
 		check := c.Text()
-		if check == "Да" || check == "да" {
+		if check == "Да" {
 			// Регистрируем пользователя с сохранёнными данными
 			token, err := sh.client.RegisterUser(telegramID, state.Name, state.Group)
 			if err != nil {

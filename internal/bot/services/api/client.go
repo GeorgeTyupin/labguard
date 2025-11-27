@@ -1,6 +1,9 @@
 package api
 
-import "net/http"
+import (
+	"errors"
+	"net/http"
+)
 
 // TODO Реализовать http клиент
 
@@ -19,5 +22,5 @@ func (client *HttpClient) CheckUserExists(uuid int64) (bool, error) {
 
 func (client *HttpClient) RegisterUser(uuid int64, name, group string) (string, error) {
 	// TODO Реализовать этот метод после написания сервера
-	return "", nil
+	return "", errors.New("метод регистрации еще не реализован")
 }
