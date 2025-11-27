@@ -8,6 +8,11 @@ import (
 	tele "gopkg.in/telebot.v4"
 )
 
+const (
+	msgTypeSuccess = "success"
+	msgTypeError   = "error"
+)
+
 type RegisterAPIClient interface {
 	// TODO Добавить методы после того как реализуется сам клиент
 	CheckUserExists(telegramID int64) (bool, error)
@@ -21,17 +26,36 @@ type RegisterState struct {
 }
 
 type StartHandler struct {
-	client     RegisterAPIClient
-	userStates map[int64]*RegisterState // telegram_id -> stage
-	logger     *slog.Logger
+	client      RegisterAPIClient
+	userStates  map[int64]*RegisterState // telegram_id -> stage
+	logger      *slog.Logger
+	sendOptions map[string]*tele.SendOptions
 }
 
 func NewStartHandler(apiClient RegisterAPIClient, logger *slog.Logger) *StartHandler {
-	return &StartHandler{
+	handler := &StartHandler{
 		client:     apiClient,
 		userStates: make(map[int64]*RegisterState),
 		logger:     logger,
 	}
+
+	handler.setSendOptions()
+
+	return handler
+}
+
+func (sh *StartHandler) setSendOptions() {
+	opt := make(map[string]*tele.SendOptions)
+	opt[msgTypeSuccess] = &tele.SendOptions{
+		ParseMode:   tele.ModeMarkdown,
+		ReplyMarkup: &tele.ReplyMarkup{RemoveKeyboard: true},
+	}
+
+	opt[msgTypeError] = &tele.SendOptions{
+		ReplyMarkup: &tele.ReplyMarkup{RemoveKeyboard: true},
+	}
+
+	sh.sendOptions = opt
 }
 
 func (sh *StartHandler) Handle(c tele.Context) error {
@@ -104,17 +128,24 @@ func (sh *StartHandler) HandleMessage(c tele.Context) error {
 			token, err := sh.client.RegisterUser(telegramID, state.Name, state.Group)
 			if err != nil {
 				logger.Warn("нет метода регистрации", slog.String("error", err.Error()))
-				return c.Send("❌ Произошла внутренняя ошибка. Попробуй /start ещё раз позже.")
+				return c.Send("❌ Произошла внутренняя ошибка. Попробуй /start ещё раз позже.",
+					sh.sendOptions[msgTypeError],
+				)
 			}
 
 			// Удаляем состояние после успешной регистрации
 			delete(sh.userStates, telegramID)
 
-			return c.Send(fmt.Sprintf("✅ Регистрация завершена!\n\n👤 ФИО: %s\n👥 Группа: %s\n🔑 Токен: ```%s```", state.Name, state.Group, token), &tele.SendOptions{ParseMode: tele.ModeMarkdown})
+			return c.Send(
+				fmt.Sprintf("✅ Регистрация завершена!\n\n👤 ФИО: %s\n👥 Группа: %s\n🔑 Токен: ```%s```", state.Name, state.Group, token),
+				sh.sendOptions[msgTypeSuccess],
+			)
+
 		case keyboards.NoText:
 			// Сбрасываем регистрацию
 			delete(sh.userStates, telegramID)
 			return c.Send("Регистрация отменена. Введи /start для повторной попытки")
+
 		default:
 			delete(sh.userStates, telegramID)
 			return c.Send("Сделан неверный выбор. Введи /start для повторной попытки")
