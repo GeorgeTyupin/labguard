@@ -22,6 +22,7 @@ type BotApp struct {
 	Bot     *tele.Bot
 	Config  *config.Config
 	Logger  *slog.Logger
+	cleanup []func()
 }
 
 func NewBot(logger *slog.Logger) (*BotApp, error) {
@@ -63,8 +64,26 @@ func NewBot(logger *slog.Logger) (*BotApp, error) {
 
 func (app *BotApp) registerHandlers() {
 	// TODO Сделать регистрацию всех handlers, после их реализации
-	startHandler := handlers.NewStartHandler(api.NewHttpClient(), app.Logger)
+	apiClient := api.NewHttpClient()
 
+	startHandler := handlers.NewStartHandler(apiClient, app.Logger)
 	app.Bot.Handle("/start", startHandler.Handle)
 	app.Bot.Handle(tele.OnText, startHandler.HandleMessage)
+
+	productHandler := handlers.NewProductsHandler(apiClient, app.Logger)
+	app.cleanup = append(app.cleanup, func() {
+		productHandler.UserProducts.Stop()
+	})
+	app.Bot.Handle("/products", productHandler.Handle)
+
+	productBtn := &tele.Btn{Unique: "product"}
+	app.Bot.Handle(productBtn, productHandler.HandleCallbacks)
+}
+
+func (app *BotApp) Shutdown() {
+	for _, cleanFunc := range app.cleanup {
+		cleanFunc()
+	}
+
+	app.Bot.Stop()
 }

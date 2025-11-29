@@ -9,13 +9,7 @@ import (
 	tele "gopkg.in/telebot.v4"
 )
 
-const (
-	msgTypeSuccess = "success"
-	msgTypeError   = "error"
-)
-
 type RegisterAPIClient interface {
-	// TODO Добавить методы после того как реализуется сам клиент
 	CheckUserExists(telegramID int64) (bool, error)
 	RegisterUser(telegramID int64, name, group string) (string, error)
 }
@@ -27,82 +21,73 @@ type RegisterState struct {
 }
 
 type StartHandler struct {
-	client      RegisterAPIClient
-	userStates  map[int64]*RegisterState // telegram_id -> stage
-	logger      *slog.Logger
-	sendOptions map[string]*tele.SendOptions
+	base       *BaseHandler
+	client     RegisterAPIClient
+	userStates map[int64]*RegisterState // telegram_id -> stage
 }
 
 func NewStartHandler(apiClient RegisterAPIClient, logger *slog.Logger) *StartHandler {
+	baseHandler := NewBaseHandler(logger)
+
 	handler := &StartHandler{
+		base:       baseHandler,
 		client:     apiClient,
 		userStates: make(map[int64]*RegisterState),
-		logger:     logger,
 	}
-
-	handler.setSendOptions()
 
 	return handler
 }
 
-func (sh *StartHandler) setSendOptions() {
-	opt := make(map[string]*tele.SendOptions)
-	opt[msgTypeSuccess] = &tele.SendOptions{
-		ParseMode:   tele.ModeMarkdown,
-		ReplyMarkup: &tele.ReplyMarkup{RemoveKeyboard: true},
-	}
-
-	opt[msgTypeError] = &tele.SendOptions{
-		ReplyMarkup: &tele.ReplyMarkup{RemoveKeyboard: true},
-	}
-
-	sh.sendOptions = opt
-}
-
-func (sh *StartHandler) Handle(c tele.Context) error {
+func (h *StartHandler) Handle(c tele.Context) error {
 	const op = "start.Handle"
-	logger := sh.logger.With(slog.String("op", op))
+	logger := h.base.logger.With(slog.String("op", op))
 
 	telegramID := c.Sender().ID
 
 	// Начинаем процесс регистрации
-	exists, err := sh.client.CheckUserExists(telegramID)
+	exists, err := h.client.CheckUserExists(telegramID)
 	if err != nil {
 		logger.Warn("нет метода проверки зарегистрированного пользователя", slog.String("error", err.Error()))
 		return c.Send("❌ Ошибка при проверке регистрации")
 	}
 
 	if exists {
-		return c.Send("Ты уже зарегистрирован/зарегистрирована! Используй /my для просмотра токена")
+		return c.Send("Вы уже зарегистрированы! Используйте /my для просмотра токена")
 	}
 
-	sh.userStates[telegramID] = &RegisterState{Step: 1}
+	h.base.mu.Lock()
+	h.userStates[telegramID] = &RegisterState{Step: 1}
+	h.base.mu.Unlock()
+
 	text := `Привет! 👋
 
-Здесь ты можешь купить готовые лабораторные работы и курсовые с полным исходным кодом.
+Здесь вы можете купить готовые лабораторные работы и курсовые с полным исходным кодом.
 
-После покупки получишь:
+После покупки получите:
 ✅ Рабочий код с комментариями
 ✅ Доступ к GitHub репозиторию
 ✅ Персональную лицензию на использование
 
-Для начала давай зарегистрируемся!
+Для начала давайте зарегистрируемся!
 
 
-📝 Напиши своё ФИО:`
+📝 Напишите своё ФИО:`
 
 	return c.Send(text)
 }
 
-func (sh *StartHandler) HandleMessage(c tele.Context) error {
+func (h *StartHandler) HandleMessage(c tele.Context) error {
 	const op = "start.HandleMessage"
-	logger := sh.logger.With(slog.String("op", op))
+	logger := h.base.logger.With(slog.String("op", op))
 
 	telegramID := c.Sender().ID
-	state, ok := sh.userStates[telegramID]
+
+	h.base.mu.RLock()
+	state, ok := h.userStates[telegramID]
 	if !ok {
 		return nil // Не в процессе регистрации
 	}
+	h.base.mu.RUnlock()
 
 	switch state.Step {
 	case 1:
@@ -113,13 +98,13 @@ func (sh *StartHandler) HandleMessage(c tele.Context) error {
 		}
 
 		state.Step = 2
-		return c.Send("👥 Теперь введи группу:")
+		return c.Send("👥 Теперь введите группу:")
 
 	case 2:
 		// Сохраняем группу в состояние
 		state.Group = c.Text()
 		if err := validators.ValidateGroup(state.Group); err != nil {
-			return c.Send(fmt.Sprintf("Неверный формат группу : %s.\n\nВы ввели %s.\nВведите группу еще раз", err.Error(), state.Group))
+			return c.Send(fmt.Sprintf("Неверный формат группу: %s.\n\nВы ввели: %s.\nВведите группу еще раз", err.Error(), state.Group))
 		}
 
 		state.Step = 3
@@ -134,35 +119,52 @@ func (sh *StartHandler) HandleMessage(c tele.Context) error {
 		switch check {
 		case keyboards.YesText:
 			// Регистрируем пользователя с сохранёнными данными
-			token, err := sh.client.RegisterUser(telegramID, state.Name, state.Group)
+			token, err := h.client.RegisterUser(telegramID, state.Name, state.Group)
 			if err != nil {
 				logger.Warn("нет метода регистрации", slog.String("error", err.Error()))
-				return c.Send("❌ Произошла внутренняя ошибка. Попробуй /start ещё раз позже.",
-					sh.sendOptions[msgTypeError],
+				return c.Send("❌ Произошла внутренняя ошибка. Попробуйте /start ещё раз позже.",
+					h.base.sendOptions[msgTypeError],
 				)
 			}
 
 			// Удаляем состояние после успешной регистрации
-			delete(sh.userStates, telegramID)
+			h.base.mu.Lock()
+			delete(h.userStates, telegramID)
+			h.base.mu.Unlock()
 
-			return c.Send(
-				fmt.Sprintf("✅ Регистрация завершена!\n\n👤 ФИО: %s\n👥 Группа: %s\n🔑 Токен: ```%s```.", state.Name, state.Group, token),
-				sh.sendOptions[msgTypeSuccess],
+			successMsg := fmt.Sprintf(
+				"✅ Регистрация завершена!\n\n"+
+					"👤 ФИО: %s\n"+
+					"👥 Группа: %s\n"+
+					"🔑 Токен: ```%s```\n\n"+
+					"📋 Доступные команды:\n"+
+					"/products — список доступных продуктов\n"+
+					"/buy <продукт> — начать покупку\n"+
+					"/my — мои покупки и токен\n"+
+					"/devices — сброс устройства",
+				state.Name, state.Group, token,
 			)
+			return c.Send(successMsg, h.base.sendOptions[msgTypeSuccess])
 
 		case keyboards.NoText:
 			// Сбрасываем регистрацию
-			delete(sh.userStates, telegramID)
+			h.base.mu.Lock()
+			delete(h.userStates, telegramID)
+			h.base.mu.Unlock()
+
 			return c.Send(
-				"Регистрация отменена. Введи /start для повторной попытки.",
-				sh.sendOptions[msgTypeSuccess],
+				"Регистрация отменена. Введите /start для повторной попытки.",
+				h.base.sendOptions[msgTypeSuccess],
 			)
 
 		default:
-			delete(sh.userStates, telegramID)
+			h.base.mu.Lock()
+			delete(h.userStates, telegramID)
+			h.base.mu.Unlock()
+
 			return c.Send(
-				"Сделан неверный выбор. Введи /start для повторной попытки.",
-				sh.sendOptions[msgTypeSuccess],
+				"Сделан неверный выбор. Введите /start для повторной попытки.",
+				h.base.sendOptions[msgTypeSuccess],
 			)
 		}
 	}

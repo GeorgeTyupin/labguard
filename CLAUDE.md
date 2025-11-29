@@ -118,11 +118,12 @@ labguard/
 │   │   ├── config/
 │   │   │   └── config.go
 │   │   ├── handlers/
-│   │   │   ├── start.go            # Каждый хендлер определяет свой интерфейс
-│   │   │   ├── products.go         # Каждый хендлер определяет свой интерфейс
-│   │   │   ├── buy.go              # Каждый хендлер определяет свой интерфейс
-│   │   │   ├── my.go               # Каждый хендлер определяет свой интерфейс
-│   │   │   └── devices.go          # Каждый хендлер определяет свой интерфейс
+│   │   │   ├── base.go             # Базовый обработчик для переиспользования
+│   │   │   ├── start.go            # Регистрация пользователя (/start)
+│   │   │   ├── products.go         # Список продуктов (/products)
+│   │   │   ├── buy.go              # Покупка продукта (/buy)
+│   │   │   ├── my.go               # Личный кабинет (/my)
+│   │   │   └── devices.go          # Сброс fingerprint (/devices)
 │   │   ├── services/
 │   │   │   └── api/
 │   │   │       └── client.go       # Реализует интерфейсы из handlers
@@ -131,7 +132,10 @@ labguard/
 │   │   │   ├── product.go          # Валидация product_slug
 │   │   │   └── purchase.go         # Валидация для покупок
 │   │   ├── keyboards/
-│   │   │   └── start.go
+│   │   │   ├── start.go            # Клавиатура подтверждения регистрации
+│   │   │   └── products.go         # Inline-клавиатура списка продуктов
+│   │   ├── models/
+│   │   │   └── products.go         # Модель продукта для бота
 │   │   └── middleware/
 │   │       └── loggers/
 │   │           └── message.go
@@ -155,9 +159,13 @@ labguard/
 │   │       └── purchase.go
 │   │
 │   └── model/
-│       ├── user.go
+│       ├── user.go                 # Модели для server
 │       ├── product.go
 │       └── purchase.go
+│
+├── pkg/
+│   └── cache/
+│       └── cacheTTL.go             # Generic кеш с TTL
 │
 ├── assets/
 │   └── labguard.exe                # Скомпилированный клиент

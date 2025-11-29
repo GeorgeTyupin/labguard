@@ -11,7 +11,7 @@ var (
 	ErrNameTooLong  = errors.New("ФИО слишком длинное (макс. 100 символов)")
 	ErrNameInvalid  = errors.New("ФИО должно содержать только буквы и пробелы")
 	ErrGroupEmpty   = errors.New("группа не может быть пустой")
-	ErrGroupInvalid = errors.New("неверный формат группы (пример: ИВТ-123)")
+	ErrGroupInvalid = errors.New("неверный формат группы (примеры: 111, ИВТ-123, М3О-111БВ-11)")
 )
 
 // ValidateName проверяет ФИО пользователя
@@ -43,8 +43,8 @@ func ValidateGroup(group string) error {
 		return ErrGroupEmpty
 	}
 
-	// Формат: буквы-цифры (например: ИВТ-123, ФИИТ-21)
-	matched, _ := regexp.MatchString(`^[а-яА-ЯёЁa-zA-Z]+-\d+$`, group)
+	// Формат: число, буквы/цифры-цифры, или буквы/цифры-цифры+буквы-цифры (например: 111, ИВТ-123, М3О-111БВ-11)
+	matched, _ := regexp.MatchString(`^([0-9]+|[а-яА-ЯёЁa-zA-Z0-9]+-[0-9]+([а-яА-ЯёЁa-zA-Z]+-[0-9]+)?)$`, group)
 	if !matched {
 		return ErrGroupInvalid
 	}

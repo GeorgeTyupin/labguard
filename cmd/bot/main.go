@@ -10,7 +10,6 @@ import (
 
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-
 	app, err := app.NewBot(logger)
 	if err != nil {
 		logger.Error("Не удалось создать приложение бота", slog.String("error", err.Error()))
@@ -24,5 +23,6 @@ func main() {
 	logger.Info("Бот успешно запустился")
 
 	<-ch
+	app.Shutdown()
 	logger.Info("Бот остановлен")
 }
