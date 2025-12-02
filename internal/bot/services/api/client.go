@@ -51,3 +51,9 @@ func (client *HttpClient) GetProducts(uuid int64) ([]*models.Product, error) {
 		},
 	}, nil
 }
+
+func (client *HttpClient) BuyProduct(uuid int64, productID int64) error {
+	// TODO Реализовать этот метод после написания сервера
+
+	return nil
+}

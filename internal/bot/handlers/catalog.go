@@ -10,15 +10,23 @@ import (
 	tele "gopkg.in/telebot.v4"
 )
 
-type CatalogHandler struct {
-	*BaseProductsHandler
+type CatalogAPIClient interface {
+	CheckUserExists(telegramID int64) (bool, error)
+	GetProducts(telegramID int64) ([]*models.Product, error)
+	BuyProduct(telegramID int64, productID int64) error
 }
 
-func NewCatalogHandler(apiClient ProductsAPIClient, logger *slog.Logger, cache ProductsCache) *CatalogHandler {
-	baseHandler := NewBaseProductsHandler(apiClient, logger, cache, false)
+type CatalogHandler struct {
+	*BaseProductsHandler
+	client CatalogAPIClient
+}
+
+func NewCatalogHandler(apiClient CatalogAPIClient, logger *slog.Logger, cache ProductsCache) *CatalogHandler {
+	baseHandler := NewBaseProductsHandler(logger, cache, false)
 
 	handler := &CatalogHandler{
 		BaseProductsHandler: baseHandler,
+		client:              apiClient,
 	}
 
 	return handler
@@ -57,11 +65,11 @@ func (h *CatalogHandler) Handle(c tele.Context) error {
 
 	productsMenu := keyboards.NewProductsMenu(products, h.purchased)
 
-	return c.Send("Список всех продуктов:\n", productsMenu)
+	return c.Send("Список всех некупленных продуктов:\n", productsMenu)
 }
 
-func (h *CatalogHandler) HandleCallbacks(c tele.Context) error {
-	const op = "catalog.HandleCallbacks"
+func (h *CatalogHandler) HandleCatalogCallbacks(c tele.Context) error {
+	const op = "catalog.HandleCatalogCallbacks"
 	logger := h.logger.With(slog.String("op", op))
 
 	defer c.Respond()
@@ -104,5 +112,43 @@ func (h *CatalogHandler) HandleCallbacks(c tele.Context) error {
 		product.Price,
 	)
 
-	return c.Send(message, h.sendOptions[msgTypeSuccess])
+	buyMenu := keyboards.NewBuyMenu(product.ID)
+
+	return c.Send(message, h.sendOptions[msgTypeSuccess], buyMenu)
+}
+
+func (h *CatalogHandler) HandleBuyCallbacks(c tele.Context) error {
+	const op = "catalog.HandleBuyCallbacks"
+	logger := h.logger.With(slog.String("op", op))
+	defer c.Respond()
+
+	// Проверяем, что это callback для продуктов
+	if c.Callback().Unique != keyboards.BuyUniqueCallback {
+		logger.Warn(
+			fmt.Sprintf("Unique не совпадает с %s", keyboards.BuyUniqueCallback),
+			slog.String("unique", c.Callback().Unique))
+		return nil
+	}
+
+	// Извлекаем id продукта
+	productID, err := strconv.Atoi(c.Callback().Data)
+	if err != nil {
+		logger.Error(
+			"Не удалось конвертировать индекс продукта из строки в число",
+			slog.String("data", c.Callback().Data),
+		)
+		return c.Send(fmt.Sprintf("❌ Возникла внутренняя ошибка. Попробуйте ввести %s еще раз", CatalogEndpoint))
+	}
+
+	// TODO добавить логику покупки, подключить платежную систему
+
+	if err := h.client.BuyProduct(c.Sender().ID, int64(productID)); err != nil {
+		logger.Error(
+			"Ошибка при покупке продукта",
+			slog.String("error", err.Error()),
+		)
+		return c.Send("❌ Ошибка при попытке купить продукт")
+	}
+
+	return c.Send("✅ Продукт успешно куплен")
 }

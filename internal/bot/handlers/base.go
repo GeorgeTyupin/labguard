@@ -55,25 +55,18 @@ type ProductsCache interface {
 	Stop()
 }
 
-type ProductsAPIClient interface {
-	CheckUserExists(telegramID int64) (bool, error)
-	GetProducts(telegramID int64) ([]*models.Product, error)
-}
-
 type BaseProductsHandler struct {
 	*BaseHandler
 	Cache     ProductsCache
-	client    ProductsAPIClient
 	purchased bool
 }
 
-func NewBaseProductsHandler(apiClient ProductsAPIClient, logger *slog.Logger, cache ProductsCache, purchased bool) *BaseProductsHandler {
+func NewBaseProductsHandler(logger *slog.Logger, cache ProductsCache, purchased bool) *BaseProductsHandler {
 	baseHandler := NewBaseHandler(logger)
 
 	productsHandler := &BaseProductsHandler{
 		BaseHandler: baseHandler,
 		Cache:       cache,
-		client:      apiClient,
 		purchased:   purchased,
 	}
 

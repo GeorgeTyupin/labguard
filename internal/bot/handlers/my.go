@@ -10,15 +10,22 @@ import (
 	tele "gopkg.in/telebot.v4"
 )
 
-type MyHandler struct {
-	*BaseProductsHandler
+type MyAPIClient interface {
+	CheckUserExists(telegramID int64) (bool, error)
+	GetProducts(telegramID int64) ([]*models.Product, error)
 }
 
-func NewMyHandler(apiClient ProductsAPIClient, logger *slog.Logger, cache ProductsCache) *MyHandler {
-	baseHandler := NewBaseProductsHandler(apiClient, logger, cache, true)
+type MyHandler struct {
+	*BaseProductsHandler
+	client MyAPIClient
+}
+
+func NewMyHandler(apiClient MyAPIClient, logger *slog.Logger, cache ProductsCache) *MyHandler {
+	baseHandler := NewBaseProductsHandler(logger, cache, true)
 
 	handler := &MyHandler{
 		BaseProductsHandler: baseHandler,
+		client:              apiClient,
 	}
 
 	return handler

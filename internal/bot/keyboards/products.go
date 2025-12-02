@@ -7,11 +7,6 @@ import (
 	tele "gopkg.in/telebot.v4"
 )
 
-const (
-	MyUniqueCallback      = "my"
-	CatalogUniqueCallback = "catalog"
-)
-
 func NewProductsMenu(products []*models.Product, purchased bool) *tele.ReplyMarkup {
 	menu := &tele.ReplyMarkup{}
 

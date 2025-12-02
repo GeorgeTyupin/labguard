@@ -82,7 +82,9 @@ func (app *BotApp) registerHandlers() {
 	})
 	app.Bot.Handle(handlers.CatalogEndpoint, catalogHandler.Handle)
 	productBtn := &tele.Btn{Unique: keyboards.CatalogUniqueCallback}
-	app.Bot.Handle(productBtn, catalogHandler.HandleCallbacks)
+	app.Bot.Handle(productBtn, catalogHandler.HandleCatalogCallbacks)
+	buyBtn := &tele.Btn{Unique: keyboards.BuyUniqueCallback}
+	app.Bot.Handle(buyBtn, catalogHandler.HandleBuyCallbacks)
 
 	// Приложение для получения списка купленных продуктов
 	myProductsCache := cache.NewCacheWithTTL[int64, []*models.Product](time.Duration(10 * time.Minute))
