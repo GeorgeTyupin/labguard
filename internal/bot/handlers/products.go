@@ -4,11 +4,9 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
-	"time"
 
 	"github.com/GeorgeTyupin/labguard/internal/bot/keyboards"
 	"github.com/GeorgeTyupin/labguard/internal/bot/models"
-	"github.com/GeorgeTyupin/labguard/pkg/cache"
 	tele "gopkg.in/telebot.v4"
 )
 
@@ -17,15 +15,21 @@ type ProductsAPIClient interface {
 	GetProducts(telegramID int64) ([]*models.Product, error)
 }
 
+type ICache interface {
+	Get(int64) ([]*models.Product, error)
+	Set(int64, []*models.Product)
+	Delete(int64)
+	Stop()
+}
+
 type ProductsHandler struct {
 	base         *BaseHandler
 	client       ProductsAPIClient
-	UserProducts cache.CacheWithTTL[int64, []*models.Product]
+	UserProducts ICache
 }
 
-func NewProductsHandler(apiClient ProductsAPIClient, logger *slog.Logger) *ProductsHandler {
+func NewProductsHandler(apiClient ProductsAPIClient, logger *slog.Logger, cache ICache) *ProductsHandler {
 	baseHandler := NewBaseHandler(logger)
-	cache := cache.NewCacheWithTTL[int64, []*models.Product](time.Duration(10 * time.Minute))
 
 	handler := &ProductsHandler{
 		base:         baseHandler,

@@ -8,7 +8,9 @@ import (
 	"github.com/GeorgeTyupin/labguard/internal/bot/config"
 	"github.com/GeorgeTyupin/labguard/internal/bot/handlers"
 	"github.com/GeorgeTyupin/labguard/internal/bot/middleware/loggers"
+	"github.com/GeorgeTyupin/labguard/internal/bot/models"
 	"github.com/GeorgeTyupin/labguard/internal/bot/services/api"
+	"github.com/GeorgeTyupin/labguard/pkg/cache"
 	tele "gopkg.in/telebot.v4"
 )
 
@@ -63,14 +65,14 @@ func NewBot(logger *slog.Logger) (*BotApp, error) {
 }
 
 func (app *BotApp) registerHandlers() {
-	// TODO Сделать регистрацию всех handlers, после их реализации
 	apiClient := api.NewHttpClient()
 
 	startHandler := handlers.NewStartHandler(apiClient, app.Logger)
 	app.Bot.Handle("/start", startHandler.Handle)
 	app.Bot.Handle(tele.OnText, startHandler.HandleMessage)
 
-	productHandler := handlers.NewProductsHandler(apiClient, app.Logger)
+	productCache := cache.NewCacheWithTTL[int64, []*models.Product](time.Duration(10 * time.Minute))
+	productHandler := handlers.NewProductsHandler(apiClient, app.Logger, &productCache)
 	app.cleanup = append(app.cleanup, func() {
 		productHandler.UserProducts.Stop()
 	})
