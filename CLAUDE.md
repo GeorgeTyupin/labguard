@@ -120,7 +120,7 @@ labguard/
 │   │   ├── handlers/
 │   │   │   ├── base.go             # Базовый обработчик для переиспользования
 │   │   │   ├── start.go            # Регистрация пользователя (/start)
-│   │   │   ├── products.go         # Список продуктов (/products)
+│   │   │   ├── catalog.go          # Каталог продуктов для покупки (/products)
 │   │   │   ├── buy.go              # Покупка продукта (/buy)
 │   │   │   ├── my.go               # Личный кабинет (/my)
 │   │   │   └── devices.go          # Сброс fingerprint (/devices)

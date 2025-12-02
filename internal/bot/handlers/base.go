@@ -4,12 +4,17 @@ import (
 	"log/slog"
 	"sync"
 
+	"github.com/GeorgeTyupin/labguard/internal/bot/models"
 	tele "gopkg.in/telebot.v4"
 )
 
 const (
 	msgTypeSuccess = "success"
 	msgTypeError   = "error"
+
+	StartEndpoint   = "/start"
+	MyEndpoint      = "/my"
+	CatalogEndpoint = "/catalog"
 )
 
 type BaseHandler struct {
@@ -41,4 +46,36 @@ func (h *BaseHandler) setSendOptions() {
 	}
 
 	h.sendOptions = opt
+}
+
+type ProductsCache interface {
+	Get(int64) ([]*models.Product, error)
+	Set(int64, []*models.Product)
+	Delete(int64)
+	Stop()
+}
+
+type ProductsAPIClient interface {
+	CheckUserExists(telegramID int64) (bool, error)
+	GetProducts(telegramID int64) ([]*models.Product, error)
+}
+
+type BaseProductsHandler struct {
+	*BaseHandler
+	Cache     ProductsCache
+	client    ProductsAPIClient
+	purchased bool
+}
+
+func NewBaseProductsHandler(apiClient ProductsAPIClient, logger *slog.Logger, cache ProductsCache, purchased bool) *BaseProductsHandler {
+	baseHandler := NewBaseHandler(logger)
+
+	productsHandler := &BaseProductsHandler{
+		BaseHandler: baseHandler,
+		Cache:       cache,
+		client:      apiClient,
+		purchased:   purchased,
+	}
+
+	return productsHandler
 }

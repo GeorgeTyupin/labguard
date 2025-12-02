@@ -6,4 +6,5 @@ type Product struct {
 	Description string
 	Price       float64
 	Purchased   bool
+	Link        string
 }

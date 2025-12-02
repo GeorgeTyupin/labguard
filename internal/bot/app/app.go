@@ -7,6 +7,7 @@ import (
 
 	"github.com/GeorgeTyupin/labguard/internal/bot/config"
 	"github.com/GeorgeTyupin/labguard/internal/bot/handlers"
+	"github.com/GeorgeTyupin/labguard/internal/bot/keyboards"
 	"github.com/GeorgeTyupin/labguard/internal/bot/middleware/loggers"
 	"github.com/GeorgeTyupin/labguard/internal/bot/models"
 	"github.com/GeorgeTyupin/labguard/internal/bot/services/api"
@@ -67,19 +68,31 @@ func NewBot(logger *slog.Logger) (*BotApp, error) {
 func (app *BotApp) registerHandlers() {
 	apiClient := api.NewHttpClient()
 
+	// Приложение для регистрации
 	startHandler := handlers.NewStartHandler(apiClient, app.Logger)
-	app.Bot.Handle("/start", startHandler.Handle)
+	app.Bot.Handle(handlers.StartEndpoint, startHandler.Handle)
 	app.Bot.Handle(tele.OnText, startHandler.HandleMessage)
 
-	productCache := cache.NewCacheWithTTL[int64, []*models.Product](time.Duration(10 * time.Minute))
-	productHandler := handlers.NewProductsHandler(apiClient, app.Logger, &productCache)
-	app.cleanup = append(app.cleanup, func() {
-		productHandler.UserProducts.Stop()
-	})
-	app.Bot.Handle("/products", productHandler.Handle)
+	productCache := cache.NewCacheWithTTL[int64, []*models.Product](time.Duration(10 * time.Minute)) // Кеш неоплаченных продуктов
 
-	productBtn := &tele.Btn{Unique: "product"}
-	app.Bot.Handle(productBtn, productHandler.HandleCallbacks)
+	// Приложение для получения списка доступных продуктов
+	catalogHandler := handlers.NewCatalogHandler(apiClient, app.Logger, productCache)
+	app.cleanup = append(app.cleanup, func() {
+		catalogHandler.Cache.Stop()
+	})
+	app.Bot.Handle(handlers.CatalogEndpoint, catalogHandler.Handle)
+	productBtn := &tele.Btn{Unique: keyboards.CatalogUniqueCallback}
+	app.Bot.Handle(productBtn, catalogHandler.HandleCallbacks)
+
+	// Приложение для получения списка купленных продуктов
+	myProductsCache := cache.NewCacheWithTTL[int64, []*models.Product](time.Duration(10 * time.Minute))
+	myHandler := handlers.NewMyHandler(apiClient, app.Logger, myProductsCache)
+	app.cleanup = append(app.cleanup, func() {
+		myHandler.Cache.Stop()
+	})
+	app.Bot.Handle(handlers.MyEndpoint, myHandler.Handle)
+	myProductBtn := &tele.Btn{Unique: keyboards.MyUniqueCallback}
+	app.Bot.Handle(myProductBtn, myHandler.HandleCallbacks)
 }
 
 func (app *BotApp) Shutdown() {

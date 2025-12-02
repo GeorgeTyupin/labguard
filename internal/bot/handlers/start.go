@@ -21,7 +21,7 @@ type RegisterState struct {
 }
 
 type StartHandler struct {
-	base       *BaseHandler
+	*BaseHandler
 	client     RegisterAPIClient
 	userStates map[int64]*RegisterState // telegram_id -> stage
 }
@@ -30,9 +30,9 @@ func NewStartHandler(apiClient RegisterAPIClient, logger *slog.Logger) *StartHan
 	baseHandler := NewBaseHandler(logger)
 
 	handler := &StartHandler{
-		base:       baseHandler,
-		client:     apiClient,
-		userStates: make(map[int64]*RegisterState),
+		BaseHandler: baseHandler,
+		client:      apiClient,
+		userStates:  make(map[int64]*RegisterState),
 	}
 
 	return handler
@@ -40,7 +40,7 @@ func NewStartHandler(apiClient RegisterAPIClient, logger *slog.Logger) *StartHan
 
 func (h *StartHandler) Handle(c tele.Context) error {
 	const op = "start.Handle"
-	logger := h.base.logger.With(slog.String("op", op))
+	logger := h.logger.With(slog.String("op", op))
 
 	telegramID := c.Sender().ID
 
@@ -55,9 +55,9 @@ func (h *StartHandler) Handle(c tele.Context) error {
 		return c.Send("Вы уже зарегистрированы! Используйте /my для просмотра токена")
 	}
 
-	h.base.mu.Lock()
+	h.mu.Lock()
 	h.userStates[telegramID] = &RegisterState{Step: 1}
-	h.base.mu.Unlock()
+	h.mu.Unlock()
 
 	text := `Привет! 👋
 
@@ -78,16 +78,16 @@ func (h *StartHandler) Handle(c tele.Context) error {
 
 func (h *StartHandler) HandleMessage(c tele.Context) error {
 	const op = "start.HandleMessage"
-	logger := h.base.logger.With(slog.String("op", op))
+	logger := h.logger.With(slog.String("op", op))
 
 	telegramID := c.Sender().ID
 
-	h.base.mu.RLock()
+	h.mu.RLock()
 	state, ok := h.userStates[telegramID]
 	if !ok {
 		return nil // Не в процессе регистрации
 	}
-	h.base.mu.RUnlock()
+	h.mu.RUnlock()
 
 	switch state.Step {
 	case 1:
@@ -122,15 +122,15 @@ func (h *StartHandler) HandleMessage(c tele.Context) error {
 			token, err := h.client.RegisterUser(telegramID, state.Name, state.Group)
 			if err != nil {
 				logger.Warn("нет метода регистрации", slog.String("error", err.Error()))
-				return c.Send("❌ Произошла внутренняя ошибка. Попробуйте /start ещё раз позже.",
-					h.base.sendOptions[msgTypeError],
+				return c.Send(fmt.Sprintf("❌ Произошла внутренняя ошибка. Попробуйте %s ещё раз позже.", StartEndpoint),
+					h.sendOptions[msgTypeError],
 				)
 			}
 
 			// Удаляем состояние после успешной регистрации
-			h.base.mu.Lock()
+			h.mu.Lock()
 			delete(h.userStates, telegramID)
-			h.base.mu.Unlock()
+			h.mu.Unlock()
 
 			successMsg := fmt.Sprintf(
 				"✅ Регистрация завершена!\n\n"+
@@ -138,33 +138,32 @@ func (h *StartHandler) HandleMessage(c tele.Context) error {
 					"👥 Группа: %s\n"+
 					"🔑 Токен: ```%s```\n\n"+
 					"📋 Доступные команды:\n"+
-					"/products — список доступных продуктов\n"+
-					"/buy <продукт> — начать покупку\n"+
+					"/catalog — список доступных продуктов\n"+
 					"/my — мои покупки и токен\n"+
 					"/devices — сброс устройства",
 				state.Name, state.Group, token,
 			)
-			return c.Send(successMsg, h.base.sendOptions[msgTypeSuccess])
+			return c.Send(successMsg, h.sendOptions[msgTypeSuccess])
 
 		case keyboards.NoText:
 			// Сбрасываем регистрацию
-			h.base.mu.Lock()
+			h.mu.Lock()
 			delete(h.userStates, telegramID)
-			h.base.mu.Unlock()
+			h.mu.Unlock()
 
 			return c.Send(
-				"Регистрация отменена. Введите /start для повторной попытки.",
-				h.base.sendOptions[msgTypeSuccess],
+				fmt.Sprintf("Регистрация отменена. Введите %s для повторной попытки.", StartEndpoint),
+				h.sendOptions[msgTypeSuccess],
 			)
 
 		default:
-			h.base.mu.Lock()
+			h.mu.Lock()
 			delete(h.userStates, telegramID)
-			h.base.mu.Unlock()
+			h.mu.Unlock()
 
 			return c.Send(
-				"Сделан неверный выбор. Введите /start для повторной попытки.",
-				h.base.sendOptions[msgTypeSuccess],
+				fmt.Sprintf("Сделан неверный выбор. Введите %s для повторной попытки.", StartEndpoint),
+				h.sendOptions[msgTypeSuccess],
 			)
 		}
 	}

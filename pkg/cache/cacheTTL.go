@@ -12,25 +12,25 @@ type elem[V any] struct {
 }
 
 type CacheWithTTL[K comparable, V any] struct {
-	cache map[K]elem[V]
 	TTL   time.Duration
 	done  chan struct{}
-	mu    *sync.RWMutex
 	once  *sync.Once
+	mu    *sync.RWMutex
+	cache map[K]elem[V]
 }
 
-func NewCacheWithTTL[K comparable, V any](ttl time.Duration) CacheWithTTL[K, V] {
+func NewCacheWithTTL[K comparable, V any](ttl time.Duration) *CacheWithTTL[K, V] {
 	cache := CacheWithTTL[K, V]{
-		cache: make(map[K]elem[V]),
 		TTL:   ttl,
 		done:  make(chan struct{}),
-		mu:    &sync.RWMutex{},
 		once:  &sync.Once{},
+		mu:    &sync.RWMutex{},
+		cache: make(map[K]elem[V]),
 	}
 
 	cache.clearByTTL()
 
-	return cache
+	return &cache
 }
 
 func (c *CacheWithTTL[K, V]) Set(key K, value V) {
