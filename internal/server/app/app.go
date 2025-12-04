@@ -6,6 +6,10 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/GeorgeTyupin/labguard/internal/server/config"
+	"github.com/GeorgeTyupin/labguard/internal/server/handlers"
+	"github.com/go-chi/chi/v5"
 )
 
 type ServerApp struct {
@@ -15,12 +19,14 @@ type ServerApp struct {
 	shutdownTimeout time.Duration
 }
 
-func NewServerApp(handler http.Handler, logger *slog.Logger, port string, shutdownTimeout int) *ServerApp {
+func NewServerApp(logger *slog.Logger, cfg *config.Config) *ServerApp {
 	appName := "HTTP Server"
 	logger = logger.With(slog.String("app", appName))
 
+	handler := registerHandlers()
+
 	server := &http.Server{
-		Addr:    port,
+		Addr:    cfg.Server.Address,
 		Handler: handler,
 	}
 
@@ -28,7 +34,7 @@ func NewServerApp(handler http.Handler, logger *slog.Logger, port string, shutdo
 		AppName:         appName,
 		server:          server,
 		logger:          logger,
-		shutdownTimeout: time.Duration(shutdownTimeout) * time.Second,
+		shutdownTimeout: cfg.Server.Timeouts.Shutdown,
 	}
 
 	return application
@@ -60,4 +66,14 @@ func (app *ServerApp) Shutdown() {
 			logger.Error(closeErr, slog.String("error", err.Error()))
 		}
 	}
+}
+
+func registerHandlers() *chi.Mux {
+	r := chi.NewRouter()
+
+	r.Route("/api/v1", func(r chi.Router) {
+		r.Post("/users", handlers.UserHandler)
+	})
+
+	return r
 }
