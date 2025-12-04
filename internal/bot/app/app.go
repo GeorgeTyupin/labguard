@@ -30,6 +30,7 @@ type BotApp struct {
 
 func NewBot(logger *slog.Logger) (*BotApp, error) {
 	appName := "Телеграмм бот"
+	logger = logger.With(slog.String("app", appName))
 
 	token, err := config.GetBotToken(envPath)
 	if err != nil {
