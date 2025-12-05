@@ -63,18 +63,54 @@ func (c *HttpClient) RegisterUser(telegramID int64, name, group string) (string,
 ### Слои приложения
 
 ```
-handler → service → repository (storage)
+handler → service → repository
     ↓         ↓           ↓
  валидация  логика      БД
 ```
 
 - **handler** — принимает запросы, валидирует вход, вызывает service
 - **service** — бизнес-логика, работает с интерфейсами repository
-- **storage** — реализация работы с БД
+- **repository** — реализация работы с БД (PostgreSQL через pgx/v5)
 
 ### Валидация
 
 Валидация входных данных выносится в отдельный пакет `internal/bot/validators/`. Каждый файл содержит валидаторы для конкретной области (регистрация, покупки, продукты). Валидаторы возвращают предопределённые ошибки для единообразия сообщений пользователю.
+
+### Работа с БД
+
+Используется **pgx/v5** — нативный PostgreSQL драйвер с высокой производительностью.
+
+**Подключение:**
+```go
+import (
+    "github.com/jackc/pgx/v5/pgxpool"
+)
+
+pool, err := pgxpool.New(ctx, cfg.Database.DSN)
+```
+
+**Запросы:**
+- Чистый SQL с плейсхолдерами `$1, $2, $3`
+- Через `QueryRow`, `Query`, `Exec`
+- Repository возвращает модели из `internal/server/model/`
+
+**Транзакции:**
+```go
+tx, _ := pool.Begin(ctx)
+defer tx.Rollback(ctx)
+
+// ... queries
+tx.Commit(ctx)
+```
+
+### Модели
+
+Каждое приложение имеет свои модели:
+- **internal/server/model/** — модели БД (User, Product, Purchase)
+- **internal/bot/models/** — модели для бота (Product с флагом purchased)
+- **internal/client/** — модели для клиента (если нужны)
+
+Модели не shared между приложениями — каждый компонент независим.
 
 ## Структура проекта
 
@@ -109,6 +145,17 @@ labguard/
 │   │   │   │   └── device.go
 │   │   │   └── license/
 │   │   │       └── license.go
+│   │   ├── repository/       
+│   │   │   └── postgres/
+│   │   │       ├── postgres.go         # Подключение к PostgreSQL (pgxpool)
+│   │   │       ├── user.go             # UserRepository
+│   │   │       ├── product.go          # ProductRepository
+│   │   │       ├── purchase.go         # PurchaseRepository
+│   │   │       └── device.go           # DeviceRepository
+│   │   ├── model/
+│   │   │   ├── user.go                 # Модели БД для server
+│   │   │   ├── product.go
+│   │   │   └── purchase.go
 │   │   └── middleware/
 │   │       └── ...
 │   │
@@ -142,28 +189,15 @@ labguard/
 │   │       └── loggers/
 │   │           └── message.go
 │   │
-│   ├── client/
-│   │   ├── app/
-│   │   │   └── app.go
-│   │   ├── config/
-│   │   │   └── config.go
-│   │   ├── fingerprint/
-│   │   │   └── fingerprint.go
-│   │   └── api/
-│   │       └── api.go              # HTTP клиент к server
-│   │
-│   ├── storage/
-│   │   ├── storage.go
-│   │   └── postgres/
-│   │       ├── postgres.go         # Подключение, транзакции
-│   │       ├── user.go
-│   │       ├── product.go
-│   │       └── purchase.go
-│   │
-│   └── model/
-│       ├── user.go                 # Модели для server
-│       ├── product.go
-│       └── purchase.go
+│   └── client/
+│       ├── app/
+│       │   └── app.go
+│       ├── config/
+│       │   └── config.go
+│       ├── fingerprint/
+│       │   └── fingerprint.go
+│       └── api/
+│           └── api.go              # HTTP клиент к server
 │
 ├── pkg/
 │   └── cache/
@@ -406,7 +440,7 @@ docs: обновил CLAUDE.md с правилами коммитов
 - **Фокусироваться на реальных багах**, а не на архитектурных несоответствиях
 
 Примеры допустимых отклонений в MVP:
-- Отсутствие некоторых слоёв (handler → storage напрямую)
+- Отсутствие некоторых слоёв (handler → repository напрямую)
 - Хардкод вместо конфига
 - Упрощённая обработка ошибок
 - Отсутствие middleware

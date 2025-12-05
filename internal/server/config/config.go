@@ -8,7 +8,7 @@ import (
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
-const confPath = "/configs/server/server.yaml"
+const confPath = "configs/server/server.yaml"
 
 type Config struct {
 	Env    string         `yaml:"env" env-default:"local"`
