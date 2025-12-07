@@ -10,16 +10,18 @@ import (
 	"github.com/GeorgeTyupin/labguard/internal/server/config"
 	"github.com/GeorgeTyupin/labguard/internal/server/handlers"
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type ServerApp struct {
 	AppName         string
 	server          *http.Server
 	logger          *slog.Logger
+	dbPool          *pgxpool.Pool
 	shutdownTimeout time.Duration
 }
 
-func NewServerApp(logger *slog.Logger, cfg *config.Config) *ServerApp {
+func NewServerApp(logger *slog.Logger, cfg *config.Config, pool *pgxpool.Pool) *ServerApp {
 	appName := "HTTP Server"
 	logger = logger.With(slog.String("app", appName))
 
@@ -34,6 +36,7 @@ func NewServerApp(logger *slog.Logger, cfg *config.Config) *ServerApp {
 		AppName:         appName,
 		server:          server,
 		logger:          logger,
+		dbPool:          pool,
 		shutdownTimeout: cfg.Server.Timeouts.Shutdown,
 	}
 

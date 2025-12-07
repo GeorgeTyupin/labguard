@@ -25,7 +25,7 @@ services:
     restart: always
     user: postgres
     env_file:
-      - ./configs/db/postgres/postgres.env
+      - ./configs/server/postgres.env
     volumes:
       - db-data:/var/lib/postgresql
     expose:

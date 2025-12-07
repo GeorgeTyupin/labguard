@@ -9,17 +9,18 @@ import (
 
 	"github.com/GeorgeTyupin/labguard/internal/server/app"
 	"github.com/GeorgeTyupin/labguard/internal/server/config"
+	"github.com/GeorgeTyupin/labguard/internal/server/repository/postgres"
 )
 
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	cfg, err := config.LoadConf()
-	if err != nil {
-		logger.Error("Ошибка загрузки конфига", slog.String("error", err.Error()))
-		os.Exit(1)
-	}
 
-	application := app.NewServerApp(logger, cfg)
+	cfg := config.MustLoad(logger)
+
+	db := postgres.MustDBPoolInit(logger, cfg.PostgresConfig)
+	defer db.Close()
+
+	application := app.NewServerApp(logger, cfg, db)
 
 	signalCh := make(chan os.Signal, 2)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
