@@ -2,46 +2,59 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
+	"time"
 
-	"github.com/joho/godotenv"
+	"github.com/ilyakaznacheev/cleanenv"
 )
 
+const confPath = "configs/bot/bot.yaml"
+
 type Config struct {
-	// TODO: добавить настройки когда понадобятся
+	*BotConf `yaml:"bot"`
 }
 
-func Load(confPath string) (*Config, error) {
-	// TODO: раскомментировать когда появятся настройки в YAML
-	// file, err := os.Open(confPath)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("возникла ошибка с открытием файла конфига по пути %s, возникла ошибка %w", confPath, err)
-	// }
-	// defer file.Close()
-	//
-	// var cfg Config
-	//
-	// decoder := yaml.NewDecoder(file)
-	// if err := decoder.Decode(&cfg); err != nil {
-	// 	return nil, fmt.Errorf("не удалось распарсить конфиг: %w", err)
-	// }
-	//
-	// return &cfg, nil
-
-	// Пока возвращаем пустую структуру
-	return &Config{}, nil
+type BotConf struct {
+	BotName  string        `yaml:"name"  env-default:"bot"`
+	BotToken string        `yaml:"token" env-required:"true" env:"BOT_TOKEN"`
+	Client   BotClientConf `yaml:"client"`
 }
 
-func GetBotToken(envPath string) (string, error) {
-	err := godotenv.Load(envPath)
+type BotClientConf struct {
+	ServerAddress string  `yaml:"server_address" env-default:"http://localhost:8080"`
+	JWT           JWTConf `yaml:"jwt"`
+}
+
+type JWTConf struct {
+	TokenTTL time.Duration `yaml:"token_ttl" env-default:"30min"`
+	Secret   string        `yaml:"secret" env:"JWT_SECRET"`
+}
+
+func MustLoad(logger *slog.Logger) *Config {
+	const op = "bot.config.MustLoad"
+	logger = logger.With(slog.String("op", op))
+	cfg, err := newBotConf()
 	if err != nil {
-		return "", fmt.Errorf("не удалось загрузить переменные среды по пути %s, возникла ошибка %w", envPath, err)
+		logger.Error("Ошибка загрузки конфига бота", slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 
-	token := os.Getenv("BOT_TOKEN")
-	if token == "" {
-		return "", fmt.Errorf("переменная окружения BOT_TOKEN не установлена")
+	return cfg
+}
+
+func newBotConf() (*Config, error) {
+	file, err := os.Open(confPath)
+	if err != nil {
+		return nil, fmt.Errorf("возникла ошибка с открытием файла конфига по пути %s, возникла ошибка %w", confPath, err)
+	}
+	defer file.Close()
+
+	var cfg Config
+
+	if err := cleanenv.ParseYAML(file, &cfg); err != nil {
+		return nil, fmt.Errorf("не удалось прочитать конфиг. Возникла ошибка %w", err)
 	}
 
-	return token, nil
+	return &cfg, nil
 }

@@ -29,10 +29,10 @@ type ConnectionConf struct {
 	Timeout           time.Duration `yaml:"timeout" env-default:"30s"`
 }
 
-func LoadPostgresConf(file *os.File) (*PostgresConfig, error) {
+func LoadPostgresConf(file os.File) (*PostgresConfig, error) {
 	var pgConf PostgresConfig
 
-	if err := cleanenv.ParseYAML(file, &pgConf); err != nil {
+	if err := cleanenv.ParseYAML(&file, &pgConf); err != nil {
 		return nil, fmt.Errorf("не удалось прочитать конфиг. Возникла ошибка %w", err)
 	}
 

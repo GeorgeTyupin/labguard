@@ -6,11 +6,14 @@ import (
 	"os/signal"
 
 	"github.com/GeorgeTyupin/labguard/internal/bot/app"
+	"github.com/GeorgeTyupin/labguard/internal/bot/config"
 )
 
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	app, err := app.NewBot(logger)
+	cfg := config.MustLoad(logger)
+
+	app, err := app.NewBot(logger, cfg)
 	if err != nil {
 		logger.Error("Не удалось создать приложение бота", slog.String("error", err.Error()))
 		return

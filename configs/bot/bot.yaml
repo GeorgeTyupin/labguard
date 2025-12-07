@@ -1,2 +1,8 @@
-# TODO: Добавить настройки при необходимости
 bot:
+  name: "labguard_bot"
+  token: ${BOT_TOKEN}
+  client:
+    address: http://localhost:8082
+    jwt:
+      token_ttl: 1h
+      secret:  ${JWT_SECRET}

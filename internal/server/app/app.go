@@ -9,6 +9,7 @@ import (
 
 	"github.com/GeorgeTyupin/labguard/internal/server/config"
 	"github.com/GeorgeTyupin/labguard/internal/server/handlers"
+	"github.com/GeorgeTyupin/labguard/internal/server/middleware"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -25,7 +26,7 @@ func NewServerApp(logger *slog.Logger, cfg *config.Config, pool *pgxpool.Pool) *
 	appName := "HTTP Server"
 	logger = logger.With(slog.String("app", appName))
 
-	handler := registerHandlers()
+	handler := registerHandlers(cfg.Server.JWTSecret)
 
 	server := &http.Server{
 		Addr:    cfg.Server.Address,
@@ -71,11 +72,13 @@ func (app *ServerApp) Shutdown() {
 	}
 }
 
-func registerHandlers() *chi.Mux {
+func registerHandlers(jwtSecret string) *chi.Mux {
 	r := chi.NewRouter()
 
-	r.Route("/api/v1", func(r chi.Router) {
-		r.Post("/users", handlers.UserHandler)
+	r.Route("/api/v1/bot", func(r chi.Router) {
+		r.Use(middleware.JWTMiddleware(jwtSecret))
+
+		r.Post("/register", handlers.RegisterUHandler)
 	})
 
 	return r

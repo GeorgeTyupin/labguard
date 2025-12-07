@@ -15,11 +15,6 @@ import (
 	tele "gopkg.in/telebot.v4"
 )
 
-const (
-	confPath = "configs/bot/bot.yaml"
-	envPath  = "configs/bot/bot.env"
-)
-
 type BotApp struct {
 	AppName string
 	Bot     *tele.Bot
@@ -28,17 +23,12 @@ type BotApp struct {
 	cleanup []func()
 }
 
-func NewBot(logger *slog.Logger) (*BotApp, error) {
+func NewBot(logger *slog.Logger, cfg *config.Config) (*BotApp, error) {
 	appName := "Телеграмм бот"
 	logger = logger.With(slog.String("app", appName))
 
-	token, err := config.GetBotToken(envPath)
-	if err != nil {
-		return nil, fmt.Errorf("не удалось получить токен из переменных окружения в приложении приложение %s, возникла ошибка %w", appName, err)
-	}
-
 	pref := tele.Settings{
-		Token:  token,
+		Token:  cfg.BotToken,
 		Poller: &tele.LongPoller{Timeout: 10 * time.Second},
 	}
 
@@ -48,11 +38,6 @@ func NewBot(logger *slog.Logger) (*BotApp, error) {
 	}
 
 	bot.Use(loggers.MessageLogger(logger))
-
-	cfg, err := config.Load(confPath)
-	if err != nil {
-		return nil, fmt.Errorf("не удалось загрузить конфиг в приложении приложение %s, возникла ошибка %w", appName, err)
-	}
 
 	application := &BotApp{
 		Bot:     bot,

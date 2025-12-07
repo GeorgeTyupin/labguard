@@ -8,7 +8,7 @@ import (
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
-const confPath = "configs/server/config.yaml"
+const confPath = "configs/server/server.yaml"
 
 type Config struct {
 	Env string
@@ -20,7 +20,6 @@ func MustLoad(logger *slog.Logger) *Config {
 	const op = "server.config.MustLoad"
 	logger = logger.With(slog.String("op", op))
 
-	// TODO Сделать загрузку пути к конфигу из переменных окружения
 	file, err := os.Open(confPath)
 	if err != nil {
 		logger.Error("Не удалось открыть файл с конфигом", slog.String("error", err.Error()))
@@ -28,21 +27,19 @@ func MustLoad(logger *slog.Logger) *Config {
 	}
 	defer file.Close()
 
-	serverConf, err := LoadServerConf(file)
+	serverConf, err := LoadServerConf(*file)
 	if err != nil {
 		logger.Error("Ошибка загрузки конфига сервера", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
 
-	file.Seek(0, 0)
-	postgresConf, err := LoadPostgresConf(file)
+	postgresConf, err := LoadPostgresConf(*file)
 	if err != nil {
 		logger.Error("Ошибка загрузки конфига базы данных", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
 
-	file.Seek(0, 0)
-	envConf, err := LoadEnvState(file)
+	envConf, err := LoadEnvState(*file)
 	if err != nil {
 		logger.Error("Ошибка загрузки конфига env", slog.String("error", err.Error()))
 		os.Exit(1)
@@ -55,12 +52,12 @@ func MustLoad(logger *slog.Logger) *Config {
 	}
 }
 
-func LoadEnvState(file *os.File) (string, error) {
+func LoadEnvState(file os.File) (string, error) {
 	var cfg struct {
 		Env string `yaml:"env" env-default:"local"`
 	}
 
-	if err := cleanenv.ParseYAML(file, &cfg); err != nil {
+	if err := cleanenv.ParseYAML(&file, &cfg); err != nil {
 		return "", fmt.Errorf("не удалось прочитать конфиг. Возникла ошибка %w", err)
 	}
 

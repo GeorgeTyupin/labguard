@@ -13,8 +13,9 @@ type ServerConfig struct {
 }
 
 type HTTPServerConf struct {
-	Address  string       `yaml:"address" env-default:"localhost:8080"`
-	Timeouts TimeoutsConf `yaml:"timeouts"`
+	Address   string       `yaml:"address" env-default:"localhost:8080"`
+	JWTSecret string       `yaml:"jwt_secret" env-required:"true"`
+	Timeouts  TimeoutsConf `yaml:"timeouts"`
 }
 
 type TimeoutsConf struct {
@@ -23,10 +24,10 @@ type TimeoutsConf struct {
 	Shutdown time.Duration `yaml:"shutdown" env-default:"10s"`
 }
 
-func LoadServerConf(file *os.File) (*ServerConfig, error) {
+func LoadServerConf(file os.File) (*ServerConfig, error) {
 	var config ServerConfig
 
-	if err := cleanenv.ParseYAML(file, &config); err != nil {
+	if err := cleanenv.ParseYAML(&file, &config); err != nil {
 		return nil, fmt.Errorf("не удалось прочитать конфиг. Возникла ошибка %w", err)
 	}
 
