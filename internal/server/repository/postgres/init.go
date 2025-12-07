@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func MustDBPoolInit(logger *slog.Logger, pgConf *config.PostgresConfig) *pgxpool.Pool {
+func MustDBPoolInit(logger *slog.Logger, pgConf config.PostgresConfig) *pgxpool.Pool {
 	const op = "server.repository.postgres.MustInit"
 	logger = logger.With(slog.String("op", op))
 
@@ -23,7 +23,7 @@ func MustDBPoolInit(logger *slog.Logger, pgConf *config.PostgresConfig) *pgxpool
 	return pool
 }
 
-func newPool(pgConf *config.PostgresConfig) (*pgxpool.Pool, error) {
+func newPool(pgConf config.PostgresConfig) (*pgxpool.Pool, error) {
 	dsn := fmt.Sprintf("postgresql://%s:%s@%s:%d/%s",
 		pgConf.Postgres.User,
 		pgConf.Postgres.Password,

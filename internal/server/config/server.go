@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
+	"github.com/joho/godotenv"
 )
 
 type ServerConfig struct {
@@ -14,7 +15,7 @@ type ServerConfig struct {
 
 type HTTPServerConf struct {
 	Address   string       `yaml:"address" env-default:"localhost:8080"`
-	JWTSecret string       `yaml:"jwt_secret" env-required:"true"`
+	JWTSecret string       `env:"JWT_SECRET" env-required:"true"`
 	Timeouts  TimeoutsConf `yaml:"timeouts"`
 }
 
@@ -24,11 +25,19 @@ type TimeoutsConf struct {
 	Shutdown time.Duration `yaml:"shutdown" env-default:"10s"`
 }
 
-func LoadServerConf(file os.File) (*ServerConfig, error) {
+func LoadServerConf(file *os.File) (*ServerConfig, error) {
 	var config ServerConfig
 
-	if err := cleanenv.ParseYAML(&file, &config); err != nil {
+	if err := godotenv.Load(envPath); err != nil {
+		return nil, fmt.Errorf("не удалось прочитать env. Возникла ошибка %w", err)
+	}
+
+	if err := cleanenv.ParseYAML(file, &config); err != nil {
 		return nil, fmt.Errorf("не удалось прочитать конфиг. Возникла ошибка %w", err)
+	}
+
+	if err := cleanenv.ReadEnv(&config); err != nil {
+		return nil, fmt.Errorf("не удалось прочитать env переменные. Возникла ошибка %w", err)
 	}
 
 	return &config, nil

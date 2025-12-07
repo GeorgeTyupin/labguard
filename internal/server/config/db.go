@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
+	"github.com/joho/godotenv"
 )
 
 type PostgresConfig struct {
@@ -14,10 +15,10 @@ type PostgresConfig struct {
 
 type DBConfig struct {
 	Database   string         `yaml:"database" env:"POSTGRES_DB"`
-	User       string         `yaml:"user" env:"POSTGRES_USER"`
-	Password   string         `yaml:"password" env:"POSTGRES_PASSWORD"`
-	Host       string         `yaml:"host" env:"POSTGRES_HOST"`
-	Port       int            `yaml:"port" env:"POSTGRES_PORT"`
+	User       string         `env:"POSTGRES_USER"`
+	Password   string         `env:"POSTGRES_PASSWORD"`
+	Host       string         `env:"POSTGRES_HOST"`
+	Port       int            `env:"POSTGRES_PORT"`
 	PoolSize   int32          `yaml:"pool_size" env-default:"10"`
 	Connection ConnectionConf `yaml:"connection"`
 }
@@ -29,11 +30,19 @@ type ConnectionConf struct {
 	Timeout           time.Duration `yaml:"timeout" env-default:"30s"`
 }
 
-func LoadPostgresConf(file os.File) (*PostgresConfig, error) {
+func LoadPostgresConf(file *os.File) (*PostgresConfig, error) {
 	var pgConf PostgresConfig
 
-	if err := cleanenv.ParseYAML(&file, &pgConf); err != nil {
+	if err := godotenv.Load(envPath); err != nil {
+		return nil, fmt.Errorf("не удалось прочитать env. Возникла ошибка %w", err)
+	}
+
+	if err := cleanenv.ParseYAML(file, &pgConf); err != nil {
 		return nil, fmt.Errorf("не удалось прочитать конфиг. Возникла ошибка %w", err)
+	}
+
+	if err := cleanenv.ReadEnv(&pgConf); err != nil {
+		return nil, fmt.Errorf("не удалось прочитать env переменные. Возникла ошибка %w", err)
 	}
 
 	return &pgConf, nil

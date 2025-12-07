@@ -75,6 +75,8 @@ func (app *ServerApp) Shutdown() {
 func registerHandlers(jwtSecret string) *chi.Mux {
 	r := chi.NewRouter()
 
+	r.HandleFunc("/health", handlers.HealthCheckHandler)
+
 	r.Route("/api/v1/bot", func(r chi.Router) {
 		r.Use(middleware.JWTMiddleware(jwtSecret))
 

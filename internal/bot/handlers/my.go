@@ -63,7 +63,6 @@ func (h *MyHandler) Handle(c tele.Context) error {
 	h.Cache.Set(telegramID, products)
 
 	productsMenu := keyboards.NewProductsMenu(products, h.purchased)
-	fmt.Println(h.purchased)
 
 	return c.Send("Список ваших продуктов:\n", productsMenu)
 }

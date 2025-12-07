@@ -1,8 +1,6 @@
 bot:
   name: "labguard_bot"
-  token: ${BOT_TOKEN}
   client:
-    address: http://localhost:8082
+    server_address: http://server:8000
     jwt:
       token_ttl: 1h
-      secret:  ${JWT_SECRET}
